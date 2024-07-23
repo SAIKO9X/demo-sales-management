@@ -8,7 +8,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SellerDaoJDBC implements SellerDao {
 
@@ -55,21 +58,39 @@ public class SellerDaoJDBC implements SellerDao {
         return List.of();
     }
 
+    @Override
+    public List<Seller> findByDepartment(Department department) {
+        String sql = "SELECT seller.*,department.Name as DepName FROM seller INNER JOIN department ON seller.DepartmentId = department.Id WHERE DepartmentId = ? ORDER BY Name";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, department.getId());
+
+            List<Seller> list = new ArrayList<>();
+            Map<Integer, Department> map = new HashMap<>();
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Department dep = map.get(rs.getInt("DepartmentId"));
+
+                    if (dep == null) {
+                        dep = instantiateDepartment(rs);
+                        map.put(rs.getInt("DepartmentId"), dep);
+                    }
+
+                    Seller seller = instantiateSeller(rs, dep);
+                    list.add(seller);
+                }
+                return list;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error finding seller by ID", e);
+        }
+    }
+
     private Seller instantiateSeller(ResultSet rs, Department department) throws SQLException {
-        return new Seller(
-                rs.getInt("Id"),
-                rs.getString("Name"),
-                rs.getString("Email"),
-                rs.getDate("BirthDate"),
-                rs.getDouble("BaseSalary"),
-                department
-        );
+        return new Seller(rs.getInt("Id"), rs.getString("Name"), rs.getString("Email"), rs.getDate("BirthDate"), rs.getDouble("BaseSalary"), department);
     }
 
     private Department instantiateDepartment(ResultSet rs) throws SQLException {
-        return new Department(
-                rs.getInt("DepartmentId"),
-                rs.getString("DepName")
-        );
+        return new Department(rs.getInt("DepartmentId"), rs.getString("DepName"));
     }
 }
