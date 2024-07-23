@@ -7,22 +7,27 @@ import java.util.Properties;
 
 public class DB {
 
-    private static Connection connection = null;
+    private static volatile Connection connection = null;
 
     public static Connection getConnection() {
         if (connection == null) {
-            try {
-                Properties props = loadProperties();
+            synchronized (DB.class) {
+                if (connection == null) {
+                    try {
+                        Properties props = loadProperties();
+                        String dbUrl = props.getProperty("dburl");
+                        String useSsl = props.getProperty("useSSL");
+                        String dbUser = resolveEnvVar(props.getProperty("dbuser"));
+                        String dbPassword = resolveEnvVar(props.getProperty("dbpassword"));
+                        
+                        String jdbcUrl = dbUrl + (useSsl != null ? "?useSSL=" + useSsl + "&allowPublicKeyRetrieval=true" : "?allowPublicKeyRetrieval=true");
 
-                String dbUser = props.getProperty("user");
-                String dbPassword = props.getProperty("password");
-                String dbUrl = props.getProperty("dburl");
-                String useSsl = props.getProperty("useSSL");
-                String jdbcUrl = dbUrl + (useSsl != null ? "?useSSL=" + useSsl : "");
-
-                connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPassword);
-            } catch (SQLException e) {
-                throw new DbException(e.getMessage());
+                        connection = DriverManager.getConnection(jdbcUrl, dbUser, dbPassword);
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        throw new DbException("Error connecting to the database: " + e.getMessage());
+                    }
+                }
             }
         }
         return connection;
@@ -32,24 +37,33 @@ public class DB {
         try (FileInputStream fs = new FileInputStream("src/main/resources/db.properties")) {
             Properties props = new Properties();
             props.load(fs);
-
-            String user = System.getenv("MYSQL_USER");
-            String password = System.getenv("MYSQL_PASSWORD");
-            props.setProperty("user", user != null ? user : props.getProperty("user"));
-            props.setProperty("password", password != null ? password : props.getProperty("password"));
-
             return props;
         } catch (IOException e) {
-            throw new DbException(e.getMessage());
+            e.printStackTrace();
+            throw new DbException("Error loading properties file: " + e.getMessage());
         }
+    }
+
+    private static String resolveEnvVar(String value) {
+        if (value != null && value.startsWith("${") && value.endsWith("}")) {
+            String envVarName = value.substring(2, value.length() - 1);
+            return System.getenv(envVarName);
+        }
+        return value;
     }
 
     public static void closeConnection() {
         if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                throw new DbException(e.getMessage());
+            synchronized (DB.class) {
+                if (connection != null) {
+                    try {
+                        connection.close();
+                        connection = null;
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        throw new DbException("Error closing the database connection: " + e.getMessage());
+                    }
+                }
             }
         }
     }
@@ -59,7 +73,8 @@ public class DB {
             try {
                 statement.close();
             } catch (SQLException e) {
-                throw new DbException(e.getMessage());
+                e.printStackTrace();
+                throw new DbException("Error closing statement: " + e.getMessage());
             }
         }
     }
@@ -69,7 +84,8 @@ public class DB {
             try {
                 set.close();
             } catch (SQLException e) {
-                throw new DbException(e.getMessage());
+                e.printStackTrace();
+                throw new DbException("Error closing result set: " + e.getMessage());
             }
         }
     }
