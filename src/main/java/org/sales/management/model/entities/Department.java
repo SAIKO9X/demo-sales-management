@@ -9,8 +9,11 @@ public class Department implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final Integer id;
+    private Integer id;
     private String name;
+
+    public Department() {
+    }
 
     public Department(Integer id, String name) {
         this.id = id;
