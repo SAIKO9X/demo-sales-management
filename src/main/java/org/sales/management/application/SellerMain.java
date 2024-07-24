@@ -8,7 +8,7 @@ import org.sales.management.model.entities.Seller;
 import java.util.Date;
 import java.util.List;
 
-public class Program {
+public class SellerMain {
     public static void main(String[] args) {
 
         System.out.println("===== TEST 1: Seller Find By Id =====");
@@ -34,5 +34,15 @@ public class Program {
         Seller newSeller = new Seller(null, "Greg Muller", "greg@gmail.com", new Date(), 4000.0, newDepartment);
         sellerDao.insert(newSeller);
         System.out.println("Inserted! New id = " + newSeller.getId());
+
+        System.out.println("\n===== TEST 5: Seller Update =====");
+        seller = sellerDao.findById(newSeller.getId());
+        seller.setName("Gregory");
+        sellerDao.update(seller);
+        System.out.println("Update complete!");
+
+        System.out.println("\n===== TEST 6: Seller Delete =====");
+        sellerDao.deleteById(newSeller.getId());
+        System.out.println("Delete complete!");
     }
 }
