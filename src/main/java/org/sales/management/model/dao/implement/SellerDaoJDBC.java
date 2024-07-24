@@ -1,13 +1,11 @@
 package org.sales.management.model.dao.implement;
 
+import org.sales.management.db.DbException;
 import org.sales.management.model.dao.SellerDao;
 import org.sales.management.model.entities.Department;
 import org.sales.management.model.entities.Seller;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,8 +21,31 @@ public class SellerDaoJDBC implements SellerDao {
 
     @Override
     public void insert(Seller seller) {
+        String sql = "INSERT INTO seller (Name, Email, BirthDate, BaseSalary, DepartmentId) VALUES (?, ?, ?, ?, ?)";
 
+        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, seller.getName());
+            stmt.setString(2, seller.getEmail());
+            stmt.setDate(3, new java.sql.Date(seller.getBirthDate().getTime()));
+            stmt.setDouble(4, seller.getBaseSalary());
+            stmt.setInt(5, seller.getDepartment().getId());
+
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        seller.setId(generatedKeys.getInt(1));
+                    }
+                }
+            } else {
+                throw new DbException("Insertion failed, no rows affected.");
+            }
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        }
     }
+
 
     @Override
     public void update(Seller seller) {
@@ -48,7 +69,7 @@ public class SellerDaoJDBC implements SellerDao {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding seller by ID", e);
+            throw new DbException(e.getMessage());
         }
         return null;
     }
@@ -78,7 +99,7 @@ public class SellerDaoJDBC implements SellerDao {
             }
             return sellers;
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding all sellers", e);
+            throw new DbException(e.getMessage());
         }
     }
 
@@ -106,15 +127,25 @@ public class SellerDaoJDBC implements SellerDao {
                 return list;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding seller by ID", e);
+            throw new DbException(e.getMessage());
         }
     }
 
     private Seller instantiateSeller(ResultSet rs, Department department) throws SQLException {
-        return new Seller(rs.getInt("Id"), rs.getString("Name"), rs.getString("Email"), rs.getDate("BirthDate"), rs.getDouble("BaseSalary"), department);
+        return new Seller(
+                rs.getInt("Id"),
+                rs.getString("Name"),
+                rs.getString("Email"),
+                rs.getDate("BirthDate"),
+                rs.getDouble("BaseSalary"),
+                department
+        );
     }
 
     private Department instantiateDepartment(ResultSet rs) throws SQLException {
-        return new Department(rs.getInt("DepartmentId"), rs.getString("DepName"));
+        return new Department(
+                rs.getInt("DepartmentId"),
+                rs.getString("DepName")
+        );
     }
 }

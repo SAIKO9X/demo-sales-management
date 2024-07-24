@@ -5,6 +5,7 @@ import org.sales.management.model.dao.SellerDao;
 import org.sales.management.model.entities.Department;
 import org.sales.management.model.entities.Seller;
 
+import java.util.Date;
 import java.util.List;
 
 public class Program {
@@ -27,5 +28,11 @@ public class Program {
         for (Seller s : allSellers) {
             System.out.println(s);
         }
+
+        System.out.println("\n===== TEST 4: Seller Insert =====");
+        Department newDepartment = new Department(2, null);
+        Seller newSeller = new Seller(null, "Greg Muller", "greg@gmail.com", new Date(), 4000.0, newDepartment);
+        sellerDao.insert(newSeller);
+        System.out.println("Inserted! New id = " + newSeller.getId());
     }
 }
